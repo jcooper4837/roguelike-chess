@@ -51,7 +51,7 @@ def generateLevel(b,p):
         it,v = 0,2+(i*6)
         while it < 8:
             r = random.randint(0,int(x/m)-1)
-            print(r,int(y/m)-2,len(b),len(b[0]))
+            #print(r,int(y/m)-2,len(b),len(b[0]))
             if b[r][c[i]] == 1:
                 b[r][c[i]] = v
                 it += 1
@@ -70,7 +70,7 @@ def generateLevel(b,p):
             r = random.randint(0,3)
             if b[i][j] == 1 and r == 0:
                 b[i][j] = 0
-    print(b)
+    #print(b)
     return b
 
 def updateBoard(b,p,mv):
@@ -93,6 +93,7 @@ def updateBoard(b,p,mv):
                     screen.blit(p[b[i][j]-2],(i*m,j*m))
     dot = (98,92,86)
     for i in range(1,len(mv)):
+        #draw dots on squares that can be moved to
         pygame.draw.circle(screen,dot,(mv[i][0]*m+int(m/2),mv[i][1]*m+int(m/2)),int(m/5))
     #screen.blit(image,(0,0))
 
@@ -102,10 +103,9 @@ def showMoves(pos,b,p,mv):
     global m
     x = int(pos[0]/m)
     y = int(pos[1]/m)
-    if len(mv) > 0 and b[x][y] == 1:
+    if len(mv) > 0 and (b[x][y] == 1 or b[x][y] > 7):
         if [x,y] in mv:
             #make move to square when available
-            #capturing not yet functional, square must be blank
             t = b[mv[0][0]][mv[0][1]]
             b[x][y] = t
             b[mv[0][0]][mv[0][1]] = 1
@@ -113,21 +113,21 @@ def showMoves(pos,b,p,mv):
     if b[x][y] == 7:
         #white king
         mv = [[x,y]]
-        if x > 0 and y > 0 and b[x-1][y-1] == 1:
+        if x > 0 and y > 0 and (b[x-1][y-1] == 1 or b[x-1][y-1] > 7):
             mv.append([x-1,y-1])
-        if y > 0 and b[x][y-1] == 1:
+        if y > 0 and (b[x][y-1] == 1 or b[x][y-1] > 7):
             mv.append([x,y-1])
-        if x < len(b)-1 and y > 0 and b[x+1][y-1] == 1:
+        if x < len(b)-1 and y > 0 and (b[x+1][y-1] == 1 or b[x+1][y-1] > 7):
             mv.append([x+1,y-1])
-        if x < len(b)-1 and b[x+1][y] == 1:
+        if x < len(b)-1 and (b[x+1][y] == 1 or b[x+1][y] > 7):
             mv.append([x+1,y])
-        if x < len(b)-1 and y < len(b[0])-1 and b[x+1][y+1] == 1:
+        if x < len(b)-1 and y < len(b[0])-1 and (b[x+1][y+1] == 1 or b[x+1][y+1] > 7):
             mv.append([x+1,y+1])
-        if y < len(b[0])-1 and b[x][y+1] == 1:
+        if y < len(b[0])-1 and (b[x][y+1] == 1 or b[x][y+1] > 7):
             mv.append([x,y+1])
-        if x > 0 and y < len(b[0])-1 and b[x-1][y+1] == 1:
+        if x > 0 and y < len(b[0])-1 and (b[x-1][y+1] == 1 or b[x-1][y+1] > 7):
             mv.append([x-1,y+1])
-        if x > 0 and b[x-1][y] == 1:
+        if x > 0 and (b[x-1][y] == 1 or b[x-1][y] > 7):
             mv.append([x-1,y])
     if b[x][y] == 2:
         #white pawn
@@ -151,21 +151,21 @@ def showMoves(pos,b,p,mv):
     if b[x][y] == 3:
         #white knight
         mv = [[x,y]]
-        if x > 0 and y > 1 and b[x-1][y-2] == 1:
+        if x > 0 and y > 1 and (b[x-1][y-2] == 1 or b[x-1][y-2] > 7):
             mv.append([x-1,y-2])
-        if x < len(b)-1 and y > 1 and b[x+1][y-2] == 1:
+        if x < len(b)-1 and y > 1 and (b[x+1][y-2] == 1 or b[x+1][y-2] > 7):
             mv.append([x+1,y-2])
-        if x < len(b)-2 and y > 0 and b[x+2][y-1] == 1:
+        if x < len(b)-2 and y > 0 and (b[x+2][y-1] == 1 or b[x+2][y-1] > 7):
             mv.append([x+2,y-1])
-        if x < len(b)-2 and y < len(b[0])-1 and b[x+2][y+1] == 1:
+        if x < len(b)-2 and y < len(b[0])-1 and (b[x+2][y+1] == 1 or b[x+2][y+1] > 7):
             mv.append([x+2,y+1])
-        if x < len(b)-1 and y < len(b[0])-2 and b[x+1][y+2] == 1:
+        if x < len(b)-1 and y < len(b[0])-2 and (b[x+1][y+2] == 1 or b[x+1][y+2] > 7):
             mv.append([x+1,y+2])
-        if x > 0 and y < len(b[0])-2 and b[x-1][y+2] == 1:
+        if x > 0 and y < len(b[0])-2 and (b[x-1][y+2] == 1 or b[x-1][y+2] > 7):
             mv.append([x-1,y+2])
-        if x > 1 and y < len(b[0])-1 and b[x-2][y+1] == 1:
+        if x > 1 and y < len(b[0])-1 and (b[x-2][y+1] == 1 or b[x-2][y+1] > 7):
             mv.append([x-2,y+1])
-        if x > 1 and y > 0 and b[x-2][y-1] == 1:
+        if x > 1 and y > 0 and (b[x-2][y-1] == 1 or b[x-2][y-1] > 7):
             mv.append([x-2,y-1])
     if b[x][y] == 4 or b[x][y] == 6:
         #white bishop & queen diagonal
@@ -175,6 +175,8 @@ def showMoves(pos,b,p,mv):
             if b[x-i][y-j] == 1:
                 mv.append([x-i,y-j])
             else:
+                if b[x-i][y-j] > 7:
+                    mv.append([x-i,y-j])
                 break
             i += 1
             j += 1
@@ -183,6 +185,8 @@ def showMoves(pos,b,p,mv):
             if b[x+i][y-j] == 1:
                 mv.append([x+i,y-j])
             else:
+                if b[x+i][y-j] > 7:
+                    mv.append([x+i,y-j])
                 break
             i += 1
             j += 1
@@ -191,6 +195,8 @@ def showMoves(pos,b,p,mv):
             if b[x+i][y+j] == 1:
                 mv.append([x+i,y+j])
             else:
+                if b[x+i][y+j] > 7:
+                    mv.append([x+i,y+j])
                 break
             i += 1
             j += 1
@@ -199,6 +205,8 @@ def showMoves(pos,b,p,mv):
             if b[x-i][y+j] == 1:
                 mv.append([x-i,y+j])
             else:
+                if b[x-i][y+j] > 7:
+                    mv.append([x-i,y+j])
                 break
             i += 1
             j += 1
@@ -211,6 +219,8 @@ def showMoves(pos,b,p,mv):
             if b[x][y-i] == 1:
                 mv.append([x,y-i])
             else:
+                if b[x][y-i] > 7:
+                    mv.append([x,y-i])
                 break
             i += 1
         i = 1
@@ -218,6 +228,8 @@ def showMoves(pos,b,p,mv):
             if b[x+i][y] == 1:
                 mv.append([x+i,y])
             else:
+                if b[x+i][y] > 7:
+                    mv.append([x+i,y])
                 break
             i += 1
         i = 1
@@ -225,6 +237,8 @@ def showMoves(pos,b,p,mv):
             if b[x][y+i] == 1:
                 mv.append([x,y+i])
             else:
+                if b[x][y+i] > 7:
+                    mv.append([x,y+i])
                 break
             i += 1
         i = 1
@@ -232,6 +246,8 @@ def showMoves(pos,b,p,mv):
             if b[x-i][y] == 1:
                 mv.append([x-i,y])
             else:
+                if b[x-i][y] > 7:
+                    mv.append([x-i,y])
                 break
             i += 1
     return mv
