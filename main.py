@@ -4,10 +4,10 @@ import random
 pygame.init()
 clock = pygame.time.Clock()
 
-x,y,m = 960,660,30 #higher m = smaller board
+x,y,m = 960,660,60 #higher m = smaller board
 screen = pygame.display.set_mode([x,y])
 running = True
-mode = 1 #0 = 1 player against ai, 1 = 2 player game
+mode = 0 #0 = 1 player against ai, 1 = 2 player game, -1 = 1 player (testing)
 clr = 0
 
 pawn = ["img/Chess_plt60.png","img/Chess_pdt60.png"]
@@ -99,6 +99,30 @@ def updateBoard(b,p,mv):
         pygame.draw.circle(screen,dot,(mv[i][0]*m+int(m/2),mv[i][1]*m+int(m/2)),int(m/5))
     #screen.blit(image,(0,0))
 
+def findAI(b,p):
+    #finds a random black piece to move
+    global x,y,m
+    nx = int(x/m)
+    ny = int(y/m)
+    i = random.randint(0,nx-1)
+    j = random.randint(0,ny-1)
+    hi = i+nx
+    hj = j+ny
+    while i < hi:
+        j = hj-ny
+        while j < hj:
+            if b[i%nx][j%ny] > 7 and b[i%nx][j%ny] < 14:
+                return [i%nx*m,j%ny*m]
+            j += 1
+        i += 1
+    return [-1,-1]
+
+def moveAI(b,p,mv):
+    #randomly choses move in list
+    global m
+    ch = random.randint(1,len(mv)-1)
+    return [mv[ch][0]*m,mv[ch][1]*m]
+
 def checkRange(v,l,h):
     #returns true if value is within range of low and high, non inclusive
     return v > l and v < h
@@ -119,11 +143,11 @@ def showMoves(pos,b,p,mv):
             t = b[mv[0][0]][mv[0][1]]
             b[x][y] = t
             b[mv[0][0]][mv[0][1]] = 1
-            if mode == 1:
+            if mode != -1:
                 clr = (clr+1)%2
         mv = []
     if b[x][y] == 7+(clr*6):
-        #white king
+        #king
         mv = [[x,y]]
         if x > 0 and y > 0 and (b[x-1][y-1] == 1 or checkRange(b[x-1][y-1],lv,hv)):
             mv.append([x-1,y-1])
@@ -142,7 +166,7 @@ def showMoves(pos,b,p,mv):
         if x > 0 and (b[x-1][y] == 1 or checkRange(b[x-1][y],lv,hv)):
             mv.append([x-1,y])
     if b[x][y] == 2+(clr*6):
-        #white pawn
+        #pawn
         mv = [[x,y]]
         if x > 0 and y > 0 and checkRange(b[x-1][y-1],lv,hv):
             mv.append([x-1,y-1])
@@ -161,7 +185,7 @@ def showMoves(pos,b,p,mv):
         if x > 0 and b[x-1][y] == 1:
             mv.append([x-1,y])
     if b[x][y] == 3+(clr*6):
-        #white knight
+        #knight
         mv = [[x,y]]
         if x > 0 and y > 1 and (b[x-1][y-2] == 1 or checkRange(b[x-1][y-2],lv,hv)):
             mv.append([x-1,y-2])
@@ -180,7 +204,7 @@ def showMoves(pos,b,p,mv):
         if x > 1 and y > 0 and (b[x-2][y-1] == 1 or checkRange(b[x-2][y-1],lv,hv)):
             mv.append([x-2,y-1])
     if b[x][y] == 4+(clr*6) or b[x][y] == 6+(clr*6):
-        #white bishop & queen diagonal
+        #bishop & queen diagonal
         mv = [[x,y]]
         i,j = 1,1
         while x-i >= 0 and y-j >= 0:
@@ -223,7 +247,7 @@ def showMoves(pos,b,p,mv):
             i += 1
             j += 1
     if b[x][y] == 5+(clr*6) or b[x][y] == 6+(clr*6):
-        #white rook & queen up/down
+        #rook & queen up/down
         if b[x][y] == 5+(clr*6):
             mv = [[x,y]]
         i = 1
@@ -268,6 +292,7 @@ def main():
     global clock
     global x,y,m
     global running
+    global mode,clr
     pieces = initPieces()
     board = createBoard(pieces)
     moves = []
@@ -282,6 +307,15 @@ def main():
             elif event.type == pygame.MOUSEBUTTONUP:
                 moves = showMoves(event.pos,board,pieces,moves)
                 updateBoard(board,pieces,moves)
+                if mode == 0 and clr == 1:
+                    moves = showMoves(findAI(board,pieces),board,pieces,moves)
+                    while len(moves) <= 1:
+                        if len(moves) == 0:
+                            running = False
+                            return
+                        moves = showMoves(findAI(board,pieces),board,pieces,moves)
+                    moves = showMoves(moveAI(board,pieces,moves),board,pieces,moves)
+                    updateBoard(board,pieces,moves)
         pygame.display.update()
         clock.tick(100)
         
