@@ -99,7 +99,7 @@ def updateBoard(b,p,mv):
         pygame.draw.circle(screen,dot,(mv[i][0]*m+int(m/2),mv[i][1]*m+int(m/2)),int(m/5))
     #screen.blit(image,(0,0))
 
-def findAI(b,p):
+def findAI(b):
     #finds a random black piece to move
     global x,y,m
     nx = int(x/m)
@@ -117,7 +117,7 @@ def findAI(b,p):
         i += 1
     return [-1,-1]
 
-def moveAI(b,p,mv):
+def moveAI(b,mv):
     #randomly choses move in list
     global m
     ch = random.randint(1,len(mv)-1)
@@ -127,7 +127,22 @@ def checkRange(v,l,h):
     #returns true if value is within range of low and high, non inclusive
     return v > l and v < h
 
-def showMoves(pos,b,p,mv):
+def findCaps(b,mv):
+    #find any and all captures black can make against white
+    global x,y,m
+    c = []
+    nx = int(x/m)
+    ny = int(y/m)
+    for i in range(nx):
+        for j in range(ny):
+            if b[i][j] > 7 and b[i][j] < 14: #check only black piece moves
+                t = findMoves(b,mv,1,8,i,j)
+                for k in range(1,len(t)): #only add moves if they are captures
+                    if b[t[k][0]][t[k][1]] > 1 and b[t[k][0]][t[k][1]] < 8:
+                        c.append([[i,j],t[k]])
+    return c
+
+def makeMove(pos,b,mv):
     #when selecting a piece, displays which squares can be moved to
     #when selecting an available move, makes the move with the selected piece
     global m
@@ -146,6 +161,14 @@ def showMoves(pos,b,p,mv):
             if mode != -1:
                 clr = (clr+1)%2
         mv = []
+        return mv
+    return findMoves(b,mv,lv,hv,x,y)
+
+def findMoves(b,mv,lv,hv,x,y):
+    #finds all available moves for selected piece
+    global m
+    global clr
+    global mode
     if b[x][y] == 7+(clr*6):
         #king
         mv = [[x,y]]
@@ -296,6 +319,7 @@ def main():
     pieces = initPieces()
     board = createBoard(pieces)
     moves = []
+    caps = []
     updateBoard(board,pieces,moves)
     
     while running:
@@ -305,16 +329,21 @@ def main():
                 if event.key == pygame.K_ESCAPE:
                     running = False
             elif event.type == pygame.MOUSEBUTTONUP:
-                moves = showMoves(event.pos,board,pieces,moves)
+                moves = makeMove(event.pos,board,moves)
                 updateBoard(board,pieces,moves)
                 if mode == 0 and clr == 1:
-                    moves = showMoves(findAI(board,pieces),board,pieces,moves)
-                    while len(moves) <= 1:
-                        if len(moves) == 0:
-                            running = False
-                            return
-                        moves = showMoves(findAI(board,pieces),board,pieces,moves)
-                    moves = showMoves(moveAI(board,pieces,moves),board,pieces,moves)
+                    caps = findCaps(board,moves)
+                    if len(caps) == 0:
+                        moves = makeMove(findAI(board),board,moves)
+                        while len(moves) <= 1:
+                            if len(moves) == 0:
+                                running = False
+                                return
+                            moves = makeMove(findAI(board),board,moves)
+                    else:
+                        ch = random.randint(0,len(caps)-1)
+                        moves = caps[ch]
+                    moves = makeMove(moveAI(board,moves),board,moves)
                     updateBoard(board,pieces,moves)
         pygame.display.update()
         clock.tick(100)
