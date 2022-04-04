@@ -53,7 +53,6 @@ def generateLevel(b,p):
         it,v = 0,2+(i*6)
         while it < 8:
             r = random.randint(0,int(x/m)-1)
-            #print(r,int(y/m)-2,len(b),len(b[0]))
             if b[r][c[i]] == 1:
                 b[r][c[i]] = v
                 it += 1
@@ -72,7 +71,6 @@ def generateLevel(b,p):
             r = random.randint(0,3) #change this range or check below to alter randomness amount
             if b[i][j] == 1 and r == 0:
                 b[i][j] = 0
-    #print(b)
     return b
 
 def updateBoard(b,p,mv):
@@ -141,6 +139,56 @@ def findCaps(b,mv):
                     if b[t[k][0]][t[k][1]] > 1 and b[t[k][0]][t[k][1]] < 8:
                         c.append([[i,j],t[k]])
     return c
+
+def findAttacks(b,mv):
+    #find any and all current and potential attacks on black from white
+    global x,y,m
+    global clr
+    clr = 0
+    pot,curr = [],[]
+    nx = int(x/m)
+    ny = int(y/m)
+    for i in range(nx):
+        for j in range(ny):
+            if b[i][j] > 1 and b[i][j] < 8: #check only white piece moves
+                t = findMoves(b,mv,7,14,i,j)
+                for k in range(1,len(t)):
+                    pot.append([[i,j],t[k]])
+                    if b[t[k][0]][t[k][1]] > 7 and b[t[k][0]][t[k][1]] < 14:
+                        curr.append([[i,j],t[k]])
+    clr = 1
+    return [len(curr)]+curr+pot
+
+def avoidAttack(b,mv,a):
+    #find a way to avoid white capturing blacks pieces if possible
+    num = a[0]
+    curr,esc = [],[]
+    for i in range(1,num+1):
+        curr.append(a[i])
+    pot = a[num+1:]
+    for i in range(num):
+        t = findMoves(b,mv,1,8,curr[i][1][0],curr[i][1][1])
+        for j in range(1,len(t)):
+            fail = False
+            for k in range(len(pot)):
+                if t[j] == pot[k][1]:
+                    fail = True
+                    break
+            if not fail:
+                swap(b,t[0],t[j])
+                new = findAttacks(b,mv)
+                if new[0] < num:
+                    esc.append([t[0],t[j]])
+                swap(b,t[0],t[j])
+    if len(esc) == 0:
+        return esc
+    ch = random.randint(0,len(esc)-1)
+    return esc[ch]
+
+def swap(b,p1,p2):
+    t = b[p1[0]][p1[1]]
+    b[p1[0]][p1[1]] = b[p2[0]][p2[1]]
+    b[p2[0]][p2[1]] = t
 
 def makeMove(pos,b,mv):
     #when selecting a piece, displays which squares can be moved to
@@ -320,6 +368,7 @@ def main():
     board = createBoard(pieces)
     moves = []
     caps = []
+    atts = []
     updateBoard(board,pieces,moves)
     
     while running:
@@ -332,17 +381,27 @@ def main():
                 moves = makeMove(event.pos,board,moves)
                 updateBoard(board,pieces,moves)
                 if mode == 0 and clr == 1:
+                    atts = findAttacks(board,moves)
                     caps = findCaps(board,moves)
-                    if len(caps) == 0:
+                    if atts[0] == 0 and len(caps) == 0:
                         moves = makeMove(findAI(board),board,moves)
                         while len(moves) <= 1:
                             if len(moves) == 0:
                                 running = False
                                 return
                             moves = makeMove(findAI(board),board,moves)
-                    else:
+                    elif len(caps) > 0:
                         ch = random.randint(0,len(caps)-1)
                         moves = caps[ch]
+                    elif atts[0] > 0:
+                        moves = avoidAttack(board,moves,atts)
+                        if len(moves) == 0:
+                            moves = makeMove(findAI(board),board,moves)
+                            while len(moves) <= 1:
+                                if len(moves) == 0:
+                                    running = False
+                                    return
+                                moves = makeMove(findAI(board),board,moves)
                     moves = makeMove(moveAI(board,moves),board,moves)
                     updateBoard(board,pieces,moves)
         pygame.display.update()
