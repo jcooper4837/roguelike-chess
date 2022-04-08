@@ -155,6 +155,7 @@ def findAttacks(b,mv):
                 for k in range(1,len(t)):
                     pot.append([[i,j],t[k]])
                     if b[t[k][0]][t[k][1]] > 7 and b[t[k][0]][t[k][1]] < 14:
+                        #separate out current and potential attack
                         curr.append([[i,j],t[k]])
     clr = 1
     return [len(curr)]+curr+pot
@@ -169,15 +170,18 @@ def avoidAttack(b,mv,a):
     for i in range(num):
         t = findMoves(b,mv,1,8,curr[i][1][0],curr[i][1][1])
         for j in range(1,len(t)):
+            #check all moves to see which ones avoid potential attacks
             fail = False
             for k in range(len(pot)):
                 if t[j] == pot[k][1]:
                     fail = True
                     break
             if not fail:
+                #check if new attack appears when move is made
                 swap(b,t[0],t[j])
                 new = findAttacks(b,mv)
                 if new[0] < num:
+                    #only add move if current attacks is decreased
                     esc.append([t[0],t[j]])
                 swap(b,t[0],t[j])
     if len(esc) == 0:
@@ -359,6 +363,19 @@ def findMoves(b,mv,lv,hv,x,y):
             i += 1
     return mv
 
+def randomMove(b,mv):
+    #generate a random valid move for the ai
+    mv = makeMove(findAI(b),b,mv)
+    cnt = 0
+    while len(mv) <= 1:
+        if len(mv) == 0:
+            return mv
+        mv = makeMove(findAI(b),b,mv)
+        cnt += 1
+        if cnt > 20: #fail-safe break if stalemate exists
+            return []
+    return mv
+
 def main():
     global clock
     global x,y,m
@@ -376,32 +393,35 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
+                    #pressing escape key will exit the game
                     running = False
             elif event.type == pygame.MOUSEBUTTONUP:
+                #tile is selected & action is performed when applicable
                 moves = makeMove(event.pos,board,moves)
                 updateBoard(board,pieces,moves)
                 if mode == 0 and clr == 1:
                     atts = findAttacks(board,moves)
                     caps = findCaps(board,moves)
                     if atts[0] == 0 and len(caps) == 0:
-                        moves = makeMove(findAI(board),board,moves)
-                        while len(moves) <= 1:
-                            if len(moves) == 0:
-                                running = False
-                                return
-                            moves = makeMove(findAI(board),board,moves)
+                        #case1: no attacks presents & no captures possible
+                        #make completely random move
+                        moves = randomMove(board,moves)
                     elif len(caps) > 0:
+                        #case2: capture is possible regardless of attacks
+                        #make completely random capture if more than one
                         ch = random.randint(0,len(caps)-1)
                         moves = caps[ch]
                     elif atts[0] > 0:
+                        #case3: an attack exists & no captures possible
+                        #find a way to avoid attack if possible
                         moves = avoidAttack(board,moves,atts)
                         if len(moves) == 0:
-                            moves = makeMove(findAI(board),board,moves)
-                            while len(moves) <= 1:
-                                if len(moves) == 0:
-                                    running = False
-                                    return
-                                moves = makeMove(findAI(board),board,moves)
+                            #no attack can be avoided, make completely random move
+                            moves = randomMove(board,moves)
+                    if len(moves) == 0:
+                        #if no move is possible, the game is over & will exit
+                        running = False
+                        break
                     moves = makeMove(moveAI(board,moves),board,moves)
                     updateBoard(board,pieces,moves)
         pygame.display.update()
