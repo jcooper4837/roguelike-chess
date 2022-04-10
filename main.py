@@ -4,7 +4,7 @@ import random
 pygame.init()
 clock = pygame.time.Clock()
 
-x,y,m = 960,660,60 #higher m = smaller board
+x,y,m = 960,660,60 #higher m = smaller board, max 120
 screen = pygame.display.set_mode([x,y])
 running = True
 mode = 0 #0 = 1 player against ai, 1 = 2 player game, -1 = 1 player (testing)
@@ -41,10 +41,27 @@ def createBoard(p):
         for j in range(int(y/m)):
             t.append(1)
         b.append(t)
-    b = generateLevel(b,p)
+    #b = generateNewLevel(b,p)
+    b = generateRandomLevel(b,p)
     return b
 
-def generateLevel(b,p):
+def generateNewLevel(b,p):
+    #generates new clean level with no obstacles & set piece spawn positions
+    global x,y,m
+    nx,ny = int(x/m),int(y/m)
+    h = int(nx/2)
+    v = [9,7,8,10,11,8,7,9,6,6,6,6,6,6,6,6,0,0,0,0,0,0,0,0,3,1,2,4,5,2,1,3]
+    it,j = 0,0
+    while j < ny:
+        for i in range(h-4,h+4):
+            b[i][j] = v[it]+2
+            it += 1
+        j += 1
+        if j == 2:
+            j = ny-2
+    return b
+
+def generateRandomLevel(b,p):
     #randomly choses which tiles will be dark or checkered & where each piece starts
     global x,y,m
     c = [int(y/m)-2,1,int(y/m)-1,0]
@@ -97,29 +114,42 @@ def updateBoard(b,p,mv):
         pygame.draw.circle(screen,dot,(mv[i][0]*m+int(m/2),mv[i][1]*m+int(m/2)),int(m/5))
     #screen.blit(image,(0,0))
 
-def findAI(b):
+def findAI(b,mv,a):
     #finds a random black piece to move
     global x,y,m
     nx = int(x/m)
     ny = int(y/m)
-    i = random.randint(0,nx-1)
-    j = random.randint(0,ny-1)
-    hi = i+nx
-    hj = j+ny
-    while i < hi:
-        j = hj-ny
-        while j < hj:
-            if b[i%nx][j%ny] > 7 and b[i%nx][j%ny] < 14:
-                return [i%nx*m,j%ny*m]
-            j += 1
-        i += 1
+    num = a[0]
+    p = []
+    for i in range(nx):
+        for j in range(ny):
+            if b[i][j] > 7 and b[i][j] < 14:
+                p.append([i,j])
+    random.shuffle(p)
+    for i in range(len(p)):
+        t = findMoves(b,mv,1,8,p[i][0],p[i][1])
+        for j in range(1,len(t)):
+            #check if selected piece can move without increasing attack count
+            if checkNewAttack(b,mv,t,j,num):
+                return [p[i][0]*m,p[i][1]*m]
+    if len(p) > 0:
+        return [p[0][0]*m,p[0][1]*m]
     return [-1,-1]
 
-def moveAI(b,mv):
+def moveAI(b,mv,a):
     #randomly choses move in list
     global m
-    ch = random.randint(1,len(mv)-1)
-    return [mv[ch][0]*m,mv[ch][1]*m]
+    sh = mv[1:]
+    random.shuffle(sh)
+    mv = [mv[0]]+sh
+    if len(mv) > 2:
+        num = a[0]
+        for i in range(1,len(mv)):
+            #check if selected move does not increase attack count
+            #only applies when move count is greater than 1
+            if checkNewAttack(b,mv,mv,i,num):
+                return [mv[i][0]*m,mv[i][1]*m]
+    return [mv[1][0]*m,mv[1][1]*m]
 
 def checkRange(v,l,h):
     #returns true if value is within range of low and high, non inclusive
@@ -189,10 +219,33 @@ def avoidAttack(b,mv,a):
     ch = random.randint(0,len(esc)-1)
     return esc[ch]
 
+def checkNewAttack(b,mv,t,i,n):
+    #check if selected move decreases attack count
+    swap(b,t[0],t[i])
+    new = findAttacks(b,mv)
+    swap(b,t[0],t[i])
+    if new[0] <= n:
+        return True
+    return False
+
 def swap(b,p1,p2):
+    #swaps 2 pieces on the board, used for checking attacks
     t = b[p1[0]][p1[1]]
     b[p1[0]][p1[1]] = b[p2[0]][p2[1]]
     b[p2[0]][p2[1]] = t
+
+def randomMove(b,mv,a):
+    #generate a random valid move for the ai
+    mv = makeMove(findAI(b,mv,a),b,mv)
+    cnt = 0
+    while len(mv) <= 1:
+        if len(mv) == 0:
+            return mv
+        mv = makeMove(findAI(b,mv,a),b,mv)
+        cnt += 1
+        if cnt > 20: #fail-safe break if stalemate exists
+            return []
+    return mv
 
 def makeMove(pos,b,mv):
     #when selecting a piece, displays which squares can be moved to
@@ -363,19 +416,6 @@ def findMoves(b,mv,lv,hv,x,y):
             i += 1
     return mv
 
-def randomMove(b,mv):
-    #generate a random valid move for the ai
-    mv = makeMove(findAI(b),b,mv)
-    cnt = 0
-    while len(mv) <= 1:
-        if len(mv) == 0:
-            return mv
-        mv = makeMove(findAI(b),b,mv)
-        cnt += 1
-        if cnt > 20: #fail-safe break if stalemate exists
-            return []
-    return mv
-
 def main():
     global clock
     global x,y,m
@@ -405,7 +445,7 @@ def main():
                     if atts[0] == 0 and len(caps) == 0:
                         #case1: no attacks presents & no captures possible
                         #make completely random move
-                        moves = randomMove(board,moves)
+                        moves = randomMove(board,moves,atts)
                     elif len(caps) > 0:
                         #case2: capture is possible regardless of attacks
                         #make completely random capture if more than one
@@ -417,12 +457,12 @@ def main():
                         moves = avoidAttack(board,moves,atts)
                         if len(moves) == 0:
                             #no attack can be avoided, make completely random move
-                            moves = randomMove(board,moves)
+                            moves = randomMove(board,moves,atts)
                     if len(moves) == 0:
                         #if no move is possible, the game is over & will exit
                         running = False
                         break
-                    moves = makeMove(moveAI(board,moves),board,moves)
+                    moves = makeMove(moveAI(board,moves,atts),board,moves)
                     updateBoard(board,pieces,moves)
         pygame.display.update()
         clock.tick(100)
