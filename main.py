@@ -8,7 +8,7 @@ x,y,m = 960,660,60 #higher m = smaller board, max 120
 screen = pygame.display.set_mode([x,y])
 running = True
 mode = 0 #0 = 1 player against ai, 1 = 2 player game, -1 = 1 player (testing)
-clr = 0
+lvl,clr = 0,0
 
 pawn = ["img/Chess_plt60.png","img/Chess_pdt60.png"]
 knight = ["img/Chess_nlt60.png","img/Chess_ndt60.png"]
@@ -32,7 +32,7 @@ def initPieces():
         p.append(pygame.transform.scale(pygame.image.load(king[i]),(m,m)))
     return p
 
-def createBoard(p):
+def createBoard(p,left):
     #creates the actual array matrix that holds the game board
     global x,y,m
     b = []
@@ -41,16 +41,23 @@ def createBoard(p):
         for j in range(int(y/m)):
             t.append(1)
         b.append(t)
-    #b = generateNewLevel(b,p)
-    b = generateRandomLevel(b,p)
+    b = generateNewLevel(b,p,left)
+    #b = generateRandomLevel(b,p)
     return b
 
-def generateNewLevel(b,p):
+def generateNewLevel(b,p,left):
     #generates new clean level with no obstacles & set piece spawn positions
     global x,y,m
+    global lvl
     nx,ny = int(x/m),int(y/m)
     h = int(nx/2)
     v = [9,7,8,10,11,8,7,9,6,6,6,6,6,6,6,6,0,0,0,0,0,0,0,0,3,1,2,4,5,2,1,3]
+    if lvl > 0:
+        for i in range(16,len(v)):
+            if v[i]+2 in left:
+                left.remove(v[i]+2)
+            else:
+                v[i] = -1
     it,j = 0,0
     while j < ny:
         for i in range(h-4,h+4):
@@ -64,6 +71,7 @@ def generateNewLevel(b,p):
 def generateRandomLevel(b,p):
     #randomly choses which tiles will be dark or checkered & where each piece starts
     global x,y,m
+    h = int(x/m/2)
     c = [int(y/m)-2,1,int(y/m)-1,0]
     for i in range(2):
         #sets up player pieces randomly for both black and white, starting with pawns
@@ -86,7 +94,7 @@ def generateRandomLevel(b,p):
         for j in range(int(y/m)):
             #randomly flips checkered tile into dark unmovable tile
             r = random.randint(0,3) #change this range or check below to alter randomness amount
-            if b[i][j] == 1 and r == 0:
+            if b[i][j] == 1 and r == 0 and not (j == 0 and (i == h or i == h-1)):
                 b[i][j] = 0
     return b
 
@@ -96,19 +104,24 @@ def updateBoard(b,p,mv):
     global screen
     global image
     screen.fill((49,46,43))
+    h = int(x/m/2)
     for i in range(int(x/m)):
         for j in range(int(y/m)):
             if b[i][j] > 0:
                 #passable tiles alternate in color to create checker pattern
                 if i % 2 + j % 2 == 1:
-                    color = (118,150,86)
+                    color = [118,150,86]
                 else:
-                    color = (238,238,210)
+                    color = [238,238,210]
+                if j == 0 and (i == h or i == h-1):
+                    #end squares for king to reach
+                    for k in range(len(color)):
+                        color[0] = (color[0] + 128) % 256
                 pygame.draw.rect(screen,color,(i*m,j*m,m,m))
                 if b[i][j] > 1:
                     #piece is drawn over tile
                     screen.blit(p[b[i][j]-2],(i*m,j*m))
-    dot = (98,92,86)
+    dot = [98,92,86]
     for i in range(1,len(mv)):
         #draw dots on squares that can be moved to
         pygame.draw.circle(screen,dot,(mv[i][0]*m+int(m/2),mv[i][1]*m+int(m/2)),int(m/5))
@@ -416,13 +429,35 @@ def findMoves(b,mv,lv,hv,x,y):
             i += 1
     return mv
 
+def findPieces(b):
+    #find and returns white pieces that are alive after game is won
+    p = []
+    for i in range(len(b)):
+        for j in range(len(b[i])):
+            if b[i][j] > 1 and b[i][j] < 8:
+                p.append(b[i][j])
+    return p
+
+def checkKing(b):
+    #checks and returns the status of the white king
+    #0 = alive, 1 = captured, 2 = reached the end
+    global x,y,m
+    h = int(x/m/2)
+    if b[h-1][0] == 7 or b[h][0] == 7:
+        return 2
+    for i in range(len(b)):
+        for j in range(len(b[i])):
+            if b[i][j] == 7:
+                return 0
+    return 1
+
 def main():
     global clock
     global x,y,m
     global running
-    global mode,clr
+    global mode,clr,lvl
     pieces = initPieces()
-    board = createBoard(pieces)
+    board = createBoard(pieces,0)
     moves = []
     caps = []
     atts = []
@@ -459,11 +494,28 @@ def main():
                             #no attack can be avoided, make completely random move
                             moves = randomMove(board,moves,atts)
                     if len(moves) == 0:
-                        #if no move is possible, the game is over & will exit
-                        running = False
+                        #if no move is possible, the game will reset
+                        lvl += 1
+                        left = findPieces(board)
+                        board = createBoard(board,left)
+                        clr = 0
+                        updateBoard(board,pieces,moves)
+                        #running = False
                         break
                     moves = makeMove(moveAI(board,moves,atts),board,moves)
                     updateBoard(board,pieces,moves)
+                    king = checkKing(board)
+                    if king > 0:
+                        if king == 1:
+                            #white king has been captured, the game will exit
+                            running = False
+                        elif king == 2:
+                            #white king reached the end, the game is reset
+                            lvl += 1
+                            left = findPieces(board)
+                            board = createBoard(board,left)
+                            clr = 0
+                            updateBoard(board,pieces,moves)
         pygame.display.update()
         clock.tick(100)
         
