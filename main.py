@@ -52,12 +52,22 @@ def generateNewLevel(b,p,left):
     nx,ny = int(x/m),int(y/m)
     h = int(nx/2)
     v = [9,7,8,10,11,8,7,9,6,6,6,6,6,6,6,6,0,0,0,0,0,0,0,0,3,1,2,4,5,2,1,3]
+    #v = [6,6,6,6,6,6,6,6,-1,-1,-1,-1,-1,-1,-1,-1,0,0,0,0,0,0,0,0,3,1,2,4,5,2,1,3]
     if lvl > 0:
         for i in range(16,len(v)):
+            #only respawns white pieces that survived previous game
             if v[i]+2 in left:
                 left.remove(v[i]+2)
             else:
                 v[i] = -1
+        for i in range(16,len(v)):
+            #fills in leftover promoted pieces
+            if len(left) == 0 and v[i] == -1:
+                v[i] = 0
+                break
+            if v[i] == -1:
+                v[i] = left[0]-2
+                left.pop(0)
     it,j = 0,0
     while j < ny:
         for i in range(h-4,h+4):
@@ -438,6 +448,20 @@ def findPieces(b):
                 p.append(b[i][j])
     return p
 
+def checkProm(b):
+    #checks if white piece has reached an end square & will promote if so
+    global x,y,m
+    h = int(x/m/2)
+    if b[h-1][0] > 1 and b[h-1][0] < 7:
+        v = b[h-1][0]
+        b[h-1][0] = 1
+        return v
+    if b[h][0] > 1 and b[h][0] < 7:
+        v = b[h][0]
+        b[h][0] = 1
+        return v
+    return 0
+
 def checkKing(b):
     #checks and returns the status of the white king
     #0 = alive, 1 = captured, 2 = reached the end
@@ -461,6 +485,7 @@ def main():
     moves = []
     caps = []
     atts = []
+    left = []
     updateBoard(board,pieces,moves)
     
     while running:
@@ -496,14 +521,22 @@ def main():
                     if len(moves) == 0:
                         #if no move is possible, the game will reset
                         lvl += 1
-                        left = findPieces(board)
+                        t = findPieces(board)
+                        for i in range(len(t)):
+                            left.append(t[i])
                         board = createBoard(board,left)
+                        left = []
                         clr = 0
                         updateBoard(board,pieces,moves)
                         #running = False
                         break
                     moves = makeMove(moveAI(board,moves,atts),board,moves)
                     updateBoard(board,pieces,moves)
+                    prom = checkProm(board)
+                    if prom > 0:
+                        left.append(prom+1)
+                        updateBoard(board,pieces,moves)
+                        break
                     king = checkKing(board)
                     if king > 0:
                         if king == 1:
@@ -512,8 +545,11 @@ def main():
                         elif king == 2:
                             #white king reached the end, the game is reset
                             lvl += 1
-                            left = findPieces(board)
+                            t = findPieces(board)
+                            for i in range(len(t)):
+                                left.append(t[i])
                             board = createBoard(board,left)
+                            left = []
                             clr = 0
                             updateBoard(board,pieces,moves)
         pygame.display.update()
