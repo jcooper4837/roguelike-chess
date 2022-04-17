@@ -9,6 +9,7 @@ screen = pygame.display.set_mode([x,y])
 running = True
 mode = 0 #0 = 1 player against ai, 1 = 2 player game, -1 = 1 player (testing)
 lvl,clr,pre = 0,0,0
+exp = 0 #0 = normal mode, 1 = expert mode
 
 pawn = ["img/Chess_plt60.png","img/Chess_pdt60.png"]
 knight = ["img/Chess_nlt60.png","img/Chess_ndt60.png"]
@@ -49,6 +50,7 @@ def generateNewLevel(b,p,left):
     #generates new clean level with no obstacles & set piece spawn positions
     global x,y,m
     global lvl
+    global exp
     nx,ny = int(x/m),int(y/m)
     h = int(nx/2)
     v = [9,7,8,10,11,8,7,9,6,6,6,6,6,6,6,6,0,0,0,0,0,0,0,0,3,1,2,4,5,2,1,3]
@@ -69,13 +71,15 @@ def generateNewLevel(b,p,left):
             if v[i] == -1:
                 v[i] = left[0]-2
                 left.pop(0)
+    for i in range(exp):
+        v = v[:16]+v
     it,j = 0,0
     while j < ny:
         for i in range(h-4,h+4):
             b[i][j] = v[it]+2
             it += 1
         j += 1
-        if j == 2:
+        if j == 2+(exp*2):
             j = ny-2
     for i in range(int(x/m)):
         for j in range(int(y/m)):
@@ -563,69 +567,69 @@ def main():
                     #switch that enables premoves
                     pre = (pre+1)%2
             elif event.type == pygame.MOUSEBUTTONUP:
-                    #tile is selected & action is performed when applicable
-                    moves = makeMove(event.pos,board,moves,premv)
-                    if pre > 1:
-                        premv = []
-                    if pre == 1 and clr == 0 and len(moves) > 0:
-                        premv = findPreMoves(board,moves)
-                    updateBoard(board,pieces,moves,premv)
-                    if mode == 0 and clr == 1:
-                        atts = findAttacks(board,moves)
-                        caps = findCaps(board,moves)
-                        if atts[0] == 0 and len(caps) == 0:
-                            #case1: no attacks presents & no captures possible
-                            #make completely random move
-                            moves = randomMove(board,moves,atts)
-                        elif len(caps) > 0:
-                            #case2: capture is possible regardless of attacks
-                            #make completely random capture if more than one
-                            ch = random.randint(0,len(caps)-1)
-                            moves = caps[ch]
-                        elif atts[0] > 0:
-                            #case3: an attack exists & no captures possible
-                            #find a way to avoid attack if possible
-                            moves = avoidAttack(board,moves,atts)
-                            if len(moves) == 0:
-                                #no attack can be avoided, make completely random move
-                                moves = randomMove(board,moves,atts)
+                #tile is selected & action is performed when applicable
+                moves = makeMove(event.pos,board,moves,premv)
+                if pre > 1:
+                    premv = []
+                if pre == 1 and clr == 0 and len(moves) > 0:
+                    premv = findPreMoves(board,moves)
+                updateBoard(board,pieces,moves,premv)
+                if mode == 0 and clr == 1:
+                    atts = findAttacks(board,moves)
+                    caps = findCaps(board,moves)
+                    if atts[0] == 0 and len(caps) == 0:
+                        #case1: no attacks presents & no captures possible
+                        #make completely random move
+                        moves = randomMove(board,moves,atts)
+                    elif len(caps) > 0:
+                        #case2: capture is possible regardless of attacks
+                        #make completely random capture if more than one
+                        ch = random.randint(0,len(caps)-1)
+                        moves = caps[ch]
+                    elif atts[0] > 0:
+                        #case3: an attack exists & no captures possible
+                        #find a way to avoid attack if possible
+                        moves = avoidAttack(board,moves,atts)
                         if len(moves) == 0:
-                            #if no move is possible, the game will reset
+                            #no attack can be avoided, make completely random move
+                            moves = randomMove(board,moves,atts)
+                    if len(moves) == 0:
+                        #if no move is possible, the game will reset
+                        lvl += 1
+                        t = findPieces(board)
+                        for i in range(len(t)):
+                            if t[i] != 7:
+                                left.append(t[i]+1)
+                            else:
+                                left.append(t[i])
+                        board = createBoard(board,left)
+                        left = []
+                        clr = 0
+                        updateBoard(board,pieces,moves,[])
+                        #running = False
+                        break
+                    moves = makeMove(moveAI(board,moves,atts),board,moves,[])
+                    updateBoard(board,pieces,moves,[])
+                    prom = checkProm(board)
+                    if prom > 0:
+                        left.append(prom+1)
+                        updateBoard(board,pieces,moves,[])
+                        break
+                    king = checkKing(board)
+                    if king > 0:
+                        if king == 1:
+                            #white king has been captured, the game will exit
+                            running = False
+                        elif king == 2:
+                            #white king reached the end, the game is reset
                             lvl += 1
                             t = findPieces(board)
                             for i in range(len(t)):
-                                if t[i] != 7:
-                                    left.append(t[i]+1)
-                                else:
-                                    left.append(t[i])
+                                left.append(t[i])
                             board = createBoard(board,left)
                             left = []
                             clr = 0
                             updateBoard(board,pieces,moves,[])
-                            #running = False
-                            break
-                        moves = makeMove(moveAI(board,moves,atts),board,moves,[])
-                        updateBoard(board,pieces,moves,[])
-                        prom = checkProm(board)
-                        if prom > 0:
-                            left.append(prom+1)
-                            updateBoard(board,pieces,moves,[])
-                            break
-                        king = checkKing(board)
-                        if king > 0:
-                            if king == 1:
-                                #white king has been captured, the game will exit
-                                running = False
-                            elif king == 2:
-                                #white king reached the end, the game is reset
-                                lvl += 1
-                                t = findPieces(board)
-                                for i in range(len(t)):
-                                    left.append(t[i])
-                                board = createBoard(board,left)
-                                left = []
-                                clr = 0
-                                updateBoard(board,pieces,moves,[])
         pygame.display.update()
         clock.tick(100)
         
