@@ -10,6 +10,7 @@ running = True
 mode = 0 #0 = 1 player against ai, 1 = 2 player game, -1 = 1 player (testing)
 lvl,clr,pre = 0,0,0
 exp = 0 #0 = normal mode, 1 = expert mode
+last = []
 
 pawn = ["img/Chess_plt60.png","img/Chess_pdt60.png"]
 knight = ["img/Chess_nlt60.png","img/Chess_ndt60.png"]
@@ -124,6 +125,7 @@ def updateBoard(b,p,mv,pmv):
     global x,y,m
     global screen
     global image
+    global last
     screen.fill((49,46,43))
     h = int(x/m/2)
     for i in range(int(x/m)):
@@ -138,6 +140,9 @@ def updateBoard(b,p,mv,pmv):
                     #end squares for king to reach
                     for k in range(len(color)):
                         color[0] = (color[0] + 128) % 256
+                if [i,j] in last:
+                    #square last piece moved to and from
+                    color[2] = (color[2] + 128) % 256
                 pygame.draw.rect(screen,color,(i*m,j*m,m,m))
                 if b[i][j] > 1:
                     #piece is drawn over tile
@@ -148,9 +153,8 @@ def updateBoard(b,p,mv,pmv):
         pygame.draw.circle(screen,dot,(mv[i][0]*m+int(m/2),mv[i][1]*m+int(m/2)),int(m/5))
     pdot = [0,100,255]
     for i in range(len(pmv)):
-        pygame.draw.circle(screen,pdot,(pmv[i][0]*m+int(m/2),pmv[i][1]*m+int(m/2)),int(m/5))
         #draw blue dots on premovable squares when applicable
-        
+        pygame.draw.circle(screen,pdot,(pmv[i][0]*m+int(m/2),pmv[i][1]*m+int(m/2)),int(m/5))
     #screen.blit(image,(0,0))
 
 def findAI(b,mv,a):
@@ -293,6 +297,7 @@ def makeMove(pos,b,mv,pmv):
     global clr
     global mode
     global pre
+    global last
     lv = 7-(clr*6)
     hv = lv+7
     x = int(pos[0]/m)
@@ -303,6 +308,7 @@ def makeMove(pos,b,mv,pmv):
             t = b[mv[0][0]][mv[0][1]]
             b[x][y] = t
             b[mv[0][0]][mv[0][1]] = 1
+            last = [mv[0],[x,y]]
             if mode != -1 and pre <= 1:
                 clr = (clr+1)%2
             if pre > 1:
@@ -546,7 +552,7 @@ def main():
     global clock
     global x,y,m
     global running
-    global mode,clr,lvl,pre
+    global mode,clr,lvl,pre,last
     pieces = initPieces()
     board = createBoard(pieces,0)
     moves = []
@@ -598,13 +604,15 @@ def main():
                         lvl += 1
                         t = findPieces(board)
                         for i in range(len(t)):
-                            if t[i] != 7:
+                            if t[i] != 7 and t[i] != 6:
+                                #black has lost all pieces, white promotes all pieces
                                 left.append(t[i]+1)
                             else:
                                 left.append(t[i])
                         board = createBoard(board,left)
                         left = []
                         clr = 0
+                        last = []
                         updateBoard(board,pieces,moves,[])
                         #running = False
                         break
@@ -629,6 +637,7 @@ def main():
                             board = createBoard(board,left)
                             left = []
                             clr = 0
+                            last = []
                             updateBoard(board,pieces,moves,[])
         pygame.display.update()
         clock.tick(100)
