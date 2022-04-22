@@ -4,13 +4,15 @@ import random
 pygame.init()
 clock = pygame.time.Clock()
 
-x,y,m = 960,660,60 #higher m = smaller board, max 120
+x,y,m = 1200,720,120 #higher m = smaller board, max 120
 screen = pygame.display.set_mode([x,y])
 running = True
 mode = 0 #0 = 1 player against ai, 1 = 2 player game, -1 = 1 player (testing)
 lvl,clr,pre = 0,0,0
 exp = 0 #0 = normal mode, 1 = expert mode
+boost = 0 #0 = normal mode, 1 = boost mode
 last = []
+values = [1,3,3,5,8,2]
 
 pawn = ["img/Chess_plt60.png","img/Chess_pdt60.png"]
 knight = ["img/Chess_nlt60.png","img/Chess_ndt60.png"]
@@ -47,6 +49,19 @@ def createBoard(p,left):
     #b = generateRandomLevel(b,p)
     return b
 
+def getSum(v):
+    #sums piece values for both white and black
+    global values
+    sc = [0,0]
+    for i in range(len(v)):
+        if v[i] == -1:
+            continue
+        if i < 16:
+            sc[0] += values[v[i]-6]+1
+        else:
+            sc[1] += values[v[i]]+1
+    return sc
+
 def generateNewLevel(b,p,left):
     #generates new clean level with no obstacles & set piece spawn positions
     global x,y,m
@@ -55,7 +70,14 @@ def generateNewLevel(b,p,left):
     nx,ny = int(x/m),int(y/m)
     h = int(nx/2)
     v = [9,7,8,10,11,8,7,9,6,6,6,6,6,6,6,6,0,0,0,0,0,0,0,0,3,1,2,4,5,2,1,3]
-    #v = [6,6,6,6,6,6,6,6,-1,-1,-1,-1,-1,-1,-1,-1,0,0,0,0,0,0,0,0,3,1,2,4,5,2,1,3]
+    #if lvl == 0:
+     #   v = [6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0,0,0,0,0,0,0,0,3,1,2,4,5,2,1,3]
+    #if lvl == 0:
+     #   v = [6,6,6,6,6,6,6,6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,5,-1,-1,-1]
+    if lvl == 0 and boost == 1:
+        for i in range(16,len(v)):
+            if v[i] < 4:
+                v[i] += 1
     if lvl > 0:
         for i in range(16,len(v)):
             #only respawns white pieces that survived previous game
@@ -63,15 +85,30 @@ def generateNewLevel(b,p,left):
                 left.remove(v[i]+2)
             else:
                 v[i] = -1
+        empty = 0
+        for i in range(16,len(v)):
+            if v[i] == -1:
+                empty += 1
+        cnt = empty
         for i in range(16,len(v)):
             #fills in leftover promoted pieces
             if len(left) == 0 and v[i] == -1:
-                #white gets a free pawn every new game
+                #white gets up to 8 free pawns every new game
                 v[i] = 0
-                break
-            if v[i] == -1:
+                if cnt <= 8:
+                    break
+                cnt -= 1
+            elif v[i] == -1:
                 v[i] = left[0]-2
                 left.pop(0)
+    sc = getSum(v)
+    pool = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
+    random.shuffle(pool)
+    it = 0
+    while sc[0] > sc[1]+int(lvl*2.5)-(boost*25) and sc[0] > 10 and len(pool) > 0:
+        v[pool[0]] = -1
+        pool.pop(0)
+        sc = getSum(v)
     for i in range(exp):
         v = v[:16]+v
     it,j = 0,0
