@@ -520,7 +520,7 @@ def findPreMoves(b,mv):
             if b[x][y-i] == 1 and i > 1:
                 pmv.append([x,y-i])
             else:
-                if i > 1 or b[x][y-i] == 0 or checkRange(b[x][y-i],lv,hv):
+                if i > 1 or b[x][y-i] != 1:
                     break
             i += 1
         i = 1
@@ -528,7 +528,7 @@ def findPreMoves(b,mv):
             if b[x+i][y] == 1 and i > 1:
                 pmv.append([x+i,y])
             else:
-                if i > 1 or b[x+i][y] == 0 or checkRange(b[x+i][y],lv,hv):
+                if i > 1 or b[x+i][y] != 1:
                     break
             i += 1
         i = 1
@@ -536,7 +536,7 @@ def findPreMoves(b,mv):
             if b[x][y+i] == 1 and i > 1:
                 pmv.append([x,y+i])
             else:
-                if i > 1 or b[x][y+i] == 0 or checkRange(b[x][y+i],lv,hv):
+                if i > 1 or b[x][y+i] != 1:
                     break
             i += 1
         i = 1
@@ -544,7 +544,7 @@ def findPreMoves(b,mv):
             if b[x-i][y] == 1 and i > 1:
                 pmv.append([x-i,y])
             else:
-                if i > 1 or b[x-i][y] == 0 or checkRange(b[x-i][y],lv,hv):
+                if i > 1 or b[x-i][y] != 1:
                     break
             i += 1
     return pmv
@@ -612,7 +612,7 @@ def main():
             elif event.type == pygame.MOUSEBUTTONUP:
                 #tile is selected & action is performed when applicable
                 moves = makeMove(event.pos,board,moves,premv)
-                if pre > 1:
+                if pre != 1 or len(moves) == 0:
                     premv = []
                 if pre == 1 and clr == 0 and len(moves) > 0:
                     premv = findPreMoves(board,moves)
