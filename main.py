@@ -4,7 +4,8 @@ import random
 pygame.init()
 clock = pygame.time.Clock()
 
-x,y,m = 1200,720,120 #higher m = smaller board, max 120
+x,y,m = 1320,720,120 #higher m = smaller board, 60 or 120 recommended, max 120
+x -= int(m/12)
 screen = pygame.display.set_mode([x,y])
 running = True
 mode = 0 #0 = 1 player against ai, 1 = 2 player game, -1 = 1 player (testing)
@@ -12,7 +13,16 @@ lvl,clr,pre = 0,0,0
 exp = 0 #0 = normal mode, 1 = expert mode
 boost = 0 #0 = normal mode, 1 = boost mode
 last = []
-values = [1,3,3,5,8,2]
+values = [1,3,3,5,8,-5]
+count = 0
+totalCount = 0
+maxMoves = 150
+
+font = pygame.font.SysFont("ariel",m)
+text = font.render(str(lvl),True,(255,255,255))
+textRect = text.get_rect()
+textRect.center = (x/2,y/2)
+screen.blit(text,textRect)
 
 pawn = ["img/Chess_plt60.png","img/Chess_pdt60.png"]
 knight = ["img/Chess_nlt60.png","img/Chess_ndt60.png"]
@@ -74,10 +84,12 @@ def generateNewLevel(b,p,left):
      #   v = [6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0,0,0,0,0,0,0,0,3,1,2,4,5,2,1,3]
     #if lvl == 0:
      #   v = [6,6,6,6,6,6,6,6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,5,-1,-1,-1]
-    if lvl == 0 and boost == 1:
+    if lvl == 0:
         for i in range(16,len(v)):
             if v[i] < 4:
-                v[i] += 1
+                v[i] += boost
+                if v[i] > 4:
+                    v[i] = 4
     if lvl > 0:
         for i in range(16,len(v)):
             #only respawns white pieces that survived previous game
@@ -105,10 +117,12 @@ def generateNewLevel(b,p,left):
     pool = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
     random.shuffle(pool)
     it = 0
+    print(sc)
     while sc[0] > sc[1]+int(lvl*2.5)-(boost*25) and sc[0] > 10 and len(pool) > 0:
         v[pool[0]] = -1
         pool.pop(0)
         sc = getSum(v)
+        print(sc)
     for i in range(exp):
         v = v[:16]+v
     it,j = 0,0
@@ -324,7 +338,7 @@ def randomMove(b,mv,a):
         mv = makeMove(findAI(b,mv,a),b,mv,[])
         cnt += 1
         if cnt > 20: #fail-safe break if stalemate exists
-            return []
+            return [-1]
     return mv
 
 def makeMove(pos,b,mv,pmv):
@@ -335,6 +349,7 @@ def makeMove(pos,b,mv,pmv):
     global mode
     global pre
     global last
+    global count,totalCount
     lv = 7-(clr*6)
     hv = lv+7
     x = int(pos[0]/m)
@@ -346,6 +361,9 @@ def makeMove(pos,b,mv,pmv):
             b[x][y] = t
             b[mv[0][0]][mv[0][1]] = 1
             last = [mv[0],[x,y]]
+            if clr == 0:
+                count += 1
+                totalCount += 1
             if mode != -1 and pre <= 1:
                 clr = (clr+1)%2
             if pre > 1:
@@ -358,6 +376,7 @@ def makeMove(pos,b,mv,pmv):
             if mode != 1:
                 clr = (clr+1)%2
             pre = abs(mv[0][0]-x)+abs(mv[0][1]-y)
+            count += pre
         mv = []
         return mv
     return findMoves(b,mv,lv,hv,x,y)
@@ -512,7 +531,6 @@ def findMoves(b,mv,lv,hv,x,y):
 def findPreMoves(b,mv):
     #finds all available premoves for selected piece. currently only pawns
     x,y = mv[0][0],mv[0][1]
-    lv,hv = 7,14
     pmv = []
     if b[x][y] == 2:
         i = 1
@@ -589,7 +607,7 @@ def main():
     global clock
     global x,y,m
     global running
-    global mode,clr,lvl,pre,last
+    global mode,clr,lvl,pre,last,count,totalCount,maxMoves
     pieces = initPieces()
     board = createBoard(pieces,0)
     moves = []
@@ -597,7 +615,9 @@ def main():
     atts = []
     left = []
     premv = []
+    color = [0,255,0]
     updateBoard(board,pieces,moves,[])
+    gameover = False
     
     while running:
         #main game loop
@@ -610,6 +630,8 @@ def main():
                     #switch that enables premoves
                     pre = (pre+1)%2
             elif event.type == pygame.MOUSEBUTTONUP:
+                if gameover:
+                    continue
                 #tile is selected & action is performed when applicable
                 moves = makeMove(event.pos,board,moves,premv)
                 if pre != 1 or len(moves) == 0:
@@ -636,7 +658,7 @@ def main():
                         if len(moves) == 0:
                             #no attack can be avoided, make completely random move
                             moves = randomMove(board,moves,atts)
-                    if len(moves) == 0:
+                    if len(moves) == 0 or moves == [-1]:
                         #if no move is possible, the game will reset
                         lvl += 1
                         t = findPieces(board)
@@ -646,10 +668,14 @@ def main():
                                 left.append(t[i]+1)
                             else:
                                 left.append(t[i])
+                        for i in range(len(left)):
+                            if moves == [-1] and left[i] != 7:
+                                left[i] = 6
                         board = createBoard(board,left)
                         left = []
                         clr = 0
                         last = []
+                        count = 0
                         updateBoard(board,pieces,moves,[])
                         #running = False
                         break
@@ -664,7 +690,8 @@ def main():
                     if king > 0:
                         if king == 1:
                             #white king has been captured, the game will exit
-                            running = False
+                            gameover = True
+                            #running = False
                         elif king == 2:
                             #white king reached the end, the game is reset
                             lvl += 1
@@ -675,7 +702,51 @@ def main():
                             left = []
                             clr = 0
                             last = []
+                            count = 0
                             updateBoard(board,pieces,moves,[])
+                    if count >= maxMoves:
+                        gameover = True
+                        
+                if count <= int(maxMoves/2):
+                    color = [int(255/(maxMoves/2))*count,255,0]
+                else:
+                    color = [255,(255*2)-(int(255/(maxMoves/2))*count),0]
+                if gameover:
+                    color = [0,255,255]
+                        
+        titleFont = pygame.font.SysFont("ariel",m-int(m/2)-int(m/6))
+        numFont = pygame.font.SysFont("ariel",m-int(m/3))
+
+        countTitle = titleFont.render("Moves",True,color)
+        countTitleRect = countTitle.get_rect()
+        countTitleRect.center = (x-(m/2)+(m/24),m-40)
+        screen.blit(countTitle,countTitleRect)
+
+        countText = numFont.render(str(count),True,color)
+        countTextRect = countText.get_rect()
+        countTextRect.center = (x-(m/2)+(m/24),m)
+        screen.blit(countText,countTextRect)
+
+        totalTitle = titleFont.render("Total",True,color)
+        totalTitleRect = totalTitle.get_rect()
+        totalTitleRect.center = (x-(m/2)+(m/24),y/2-40)
+        screen.blit(totalTitle,totalTitleRect)
+
+        totalText = numFont.render(str(totalCount),True,color)
+        totalTextRect = totalText.get_rect()
+        totalTextRect.center = (x-(m/2)+(m/24),y/2)
+        screen.blit(totalText,totalTextRect)
+
+        lvlTitle = titleFont.render("Level",True,color)
+        lvlTitleRect = lvlTitle.get_rect()
+        lvlTitleRect.center = (x-(m/2)+(m/24),y-m-40)
+        screen.blit(lvlTitle,lvlTitleRect)
+
+        lvlText = numFont.render(str(lvl+1),True,color)
+        lvlTextRect = lvlText.get_rect()
+        lvlTextRect.center = (x-(m/2)+(m/24),y-m)
+        screen.blit(lvlText,lvlTextRect)
+        
         pygame.display.update()
         clock.tick(100)
         
