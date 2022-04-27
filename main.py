@@ -14,9 +14,13 @@ exp = 0 #0 = normal mode, 1 = expert mode
 boost = 0 #0 = normal mode, 1 = boost mode
 last = []
 values = [1,3,3,5,8,-5]
-count = 0
-totalCount = 0
-maxMoves = 150
+count = 0 #in-level move counter
+totalCount = 0 #total move counter
+maxMoves = 150 #move limit per level
+sd = False #false = normal, true = sudden death (white king has been captured)
+rsh = False #reshuffle
+rsgn = False #resign
+gameover = False
 
 font = pygame.font.SysFont("ariel",m)
 text = font.render(str(lvl),True,(255,255,255))
@@ -77,13 +81,16 @@ def generateNewLevel(b,p,left):
     global x,y,m
     global lvl
     global exp
+    global count
+    global sd
+    global rsh
     nx,ny = int(x/m),int(y/m)
     h = int(nx/2)
     v = [9,7,8,10,11,8,7,9,6,6,6,6,6,6,6,6,0,0,0,0,0,0,0,0,3,1,2,4,5,2,1,3]
     #if lvl == 0:
      #   v = [6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0,0,0,0,0,0,0,0,3,1,2,4,5,2,1,3]
     #if lvl == 0:
-     #   v = [6,6,6,6,6,6,6,6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,5,-1,-1,-1]
+     #   v = [6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,3,-1,2,4,5,2,-1,3]
     if lvl == 0:
         for i in range(16,len(v)):
             if v[i] < 4:
@@ -106,7 +113,8 @@ def generateNewLevel(b,p,left):
             #fills in leftover promoted pieces
             if len(left) == 0 and v[i] == -1:
                 #white gets up to 8 free pawns every new game
-                v[i] = 0
+                if not sd and not rsh:
+                    v[i] = 0
                 if cnt <= 8:
                     break
                 cnt -= 1
@@ -141,7 +149,7 @@ def generateNewLevel(b,p,left):
                 b[i][j] = 0
     return b
 
-def generateRandomLevel(b,p):
+'''def generateRandomLevel(b,p):
     #randomly choses which tiles will be dark or checkered & where each piece starts
     global x,y,m
     h = int(x/m/2)
@@ -169,7 +177,7 @@ def generateRandomLevel(b,p):
             r = random.randint(0,3) #change this range or check below to alter randomness amount
             if b[i][j] == 1 and r == 0 and not (j == 0 and (i == h or i == h-1)):
                 b[i][j] = 0
-    return b
+    return b'''
 
 def updateBoard(b,p,mv,pmv):
     #visually updates the game board after each move
@@ -603,11 +611,31 @@ def checkKing(b):
                 return 0
     return 1
 
+def getWhite(b):
+    #get all white pieces
+    arr = []
+    for i in range(len(b)):
+        for j in range(len(b[i])):
+            if checkRange(b[i][j],1,8):
+                arr.append(b[i][j])
+    return arr
+
+def getColor():
+    #set the color for the on-screen text
+    global count,maxMoves,gameover
+    if count <= int(maxMoves/2):
+        color = [int((255/(maxMoves/2))*count)%256,255,0]
+    else:
+        color = [255,int((255*2)-((255/(maxMoves/2))*count))%256,0]
+    if gameover:
+        color = [0,255,255]
+    return color
+
 def main():
     global clock
     global x,y,m
     global running
-    global mode,clr,lvl,pre,last,count,totalCount,maxMoves
+    global mode,clr,lvl,pre,last,count,totalCount,maxMoves,sd,rsh,rsgn,gameover
     pieces = initPieces()
     board = createBoard(pieces,0)
     moves = []
@@ -617,7 +645,6 @@ def main():
     premv = []
     color = [0,255,0]
     updateBoard(board,pieces,moves,[])
-    gameover = False
     
     while running:
         #main game loop
@@ -629,17 +656,39 @@ def main():
                 elif event.key == pygame.K_p:
                     #switch that enables premoves
                     pre = (pre+1)%2
+                elif event.key == pygame.K_r:
+                    #switch that resets board at cost of some moves
+                    #only works when current level has 0 moves
+                    if count == 0 or rsh:
+                        rsh = True
+                        if count + int(maxMoves/4)*2 < maxMoves:
+                            count += int(maxMoves/4)
+                            board = createBoard(board,getWhite(board))
+                            moves = []
+                            updateBoard(board,pieces,moves,[])
+                    color = getColor()
+                elif event.key == pygame.K_q:
+                    #switch that resigns the game
+                    if not rsgn:
+                        rsgn = True
+                        gameover = True
+                    else:
+                        rsgn = False
+                        gameover = False
+                    color = getColor()
             elif event.type == pygame.MOUSEBUTTONUP:
-                if gameover:
-                    continue
                 #tile is selected & action is performed when applicable
+                if gameover or event.pos[0] > x-m+int(m/12):
+                    continue
+                if rsh:
+                    rsh = False
                 moves = makeMove(event.pos,board,moves,premv)
                 if pre != 1 or len(moves) == 0:
                     premv = []
                 if pre == 1 and clr == 0 and len(moves) > 0:
                     premv = findPreMoves(board,moves)
                 updateBoard(board,pieces,moves,premv)
-                if mode == 0 and clr == 1:
+                while mode == 0 and clr == 1:
                     atts = findAttacks(board,moves)
                     caps = findCaps(board,moves)
                     if atts[0] == 0 and len(caps) == 0:
@@ -663,7 +712,7 @@ def main():
                         lvl += 1
                         t = findPieces(board)
                         for i in range(len(t)):
-                            if t[i] != 7 and t[i] != 6:
+                            if not sd and t[i] != 7 and t[i] != 6:
                                 #black has lost all pieces, white promotes all pieces
                                 left.append(t[i]+1)
                             else:
@@ -676,6 +725,7 @@ def main():
                         clr = 0
                         last = []
                         count = 0
+                        color = getColor()
                         updateBoard(board,pieces,moves,[])
                         #running = False
                         break
@@ -683,14 +733,19 @@ def main():
                     updateBoard(board,pieces,moves,[])
                     prom = checkProm(board)
                     if prom > 0:
-                        left.append(prom+1)
+                        if not sd:
+                            left.append(prom+1)
+                        else:
+                            left.append(prom)
                         updateBoard(board,pieces,moves,[])
                         break
                     king = checkKing(board)
-                    if king > 0:
+                    if sd and king == 0:
+                        sd = False
+                    if not sd and king > 0:
                         if king == 1:
-                            #white king has been captured, the game will exit
-                            gameover = True
+                            #white king has been captured, the game enters sudden death
+                            sd = True
                             #running = False
                         elif king == 2:
                             #white king reached the end, the game is reset
@@ -703,16 +758,12 @@ def main():
                             clr = 0
                             last = []
                             count = 0
+                            color = getColor()
                             updateBoard(board,pieces,moves,[])
-                    if count >= maxMoves:
+                    if len(getWhite(board)) == 0 or count >= maxMoves:
                         gameover = True
                         
-                if count <= int(maxMoves/2):
-                    color = [int(255/(maxMoves/2))*count,255,0]
-                else:
-                    color = [255,(255*2)-(int(255/(maxMoves/2))*count),0]
-                if gameover:
-                    color = [0,255,255]
+                color = getColor()
                         
         titleFont = pygame.font.SysFont("ariel",m-int(m/2)-int(m/6))
         numFont = pygame.font.SysFont("ariel",m-int(m/3))
