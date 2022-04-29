@@ -14,6 +14,7 @@ exp = 0 #0 = normal mode, 1 = expert mode
 boost = 0 #0 = normal mode, 1 = boost mode
 last = []
 values = [1,3,3,5,8,-5]
+color = [0,255,0]
 count = 0 #in-level move counter
 totalCount = 0 #total move counter
 maxMoves = 150 #move limit per level
@@ -22,11 +23,14 @@ rsh = False #reshuffle
 rsgn = False #resign
 gameover = False
 
-font = pygame.font.SysFont("ariel",m)
+'''font = pygame.font.SysFont("ariel",m)
 text = font.render(str(lvl),True,(255,255,255))
 textRect = text.get_rect()
 textRect.center = (x/2,y/2)
-screen.blit(text,textRect)
+screen.blit(text,textRect)'''
+
+titleFont = pygame.font.SysFont("ariel",m-int(m/2)-int(m/6))
+numFont = pygame.font.SysFont("ariel",m-int(m/3))
 
 pawn = ["img/Chess_plt60.png","img/Chess_pdt60.png"]
 knight = ["img/Chess_nlt60.png","img/Chess_ndt60.png"]
@@ -88,9 +92,11 @@ def generateNewLevel(b,p,left):
     h = int(nx/2)
     v = [9,7,8,10,11,8,7,9,6,6,6,6,6,6,6,6,0,0,0,0,0,0,0,0,3,1,2,4,5,2,1,3]
     #if lvl == 0:
-     #   v = [6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0,0,0,0,0,0,0,0,3,1,2,4,5,2,1,3]
+     #   v = [9,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0,0,0,0,0,0,0,0,3,1,2,4,5,2,1,3]
     #if lvl == 0:
      #   v = [6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,3,-1,2,4,5,2,-1,3]
+    #if lvl == 0:
+     #   v = [9,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0,5,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1]
     if lvl == 0:
         for i in range(16,len(v)):
             if v[i] < 4:
@@ -178,6 +184,61 @@ def generateNewLevel(b,p,left):
             if b[i][j] == 1 and r == 0 and not (j == 0 and (i == h or i == h-1)):
                 b[i][j] = 0
     return b'''
+
+def animate(b,p,mv):
+    #create a smooth animation for when a piece moves to another square
+    global x,y,m
+    global clr,last
+    rate = 10 #lower number = faster, higher number = smoother
+    pos = [last[0][0]*m,last[0][1]*m,last[1][0]*m,last[1][1]*m]
+    pair = [b[last[0][0]][last[0][1]],b[last[1][0]][last[1][1]]]
+    b[last[0][0]][last[0][1]] = 1
+    slide = [pos[0],pos[1]]
+    inc = [(pos[2]-pos[0])/rate,(pos[3]-pos[1])/rate]
+    for i in range(rate):
+        updateBoard(b,p,[],[])
+        updateText()
+        screen.blit(p[pair[0]-2],(slide))
+        pygame.display.update()
+        clock.tick(100)
+        for j in range(len(slide)):
+            slide[j] += inc[j]
+    b[last[0][0]][last[0][1]] = pair[0]
+
+def updateText():
+    #visually updates the text on the right side
+    global count,totalCount,lvl
+    global titleFont,numFont,color
+
+    countTitle = titleFont.render("Moves",True,color)
+    countTitleRect = countTitle.get_rect()
+    countTitleRect.center = (x-(m/2)+(m/24),m-40)
+    screen.blit(countTitle,countTitleRect)
+
+    countText = numFont.render(str(count),True,color)
+    countTextRect = countText.get_rect()
+    countTextRect.center = (x-(m/2)+(m/24),m)
+    screen.blit(countText,countTextRect)
+
+    totalTitle = titleFont.render("Total",True,color)
+    totalTitleRect = totalTitle.get_rect()
+    totalTitleRect.center = (x-(m/2)+(m/24),y/2-40)
+    screen.blit(totalTitle,totalTitleRect)
+
+    totalText = numFont.render(str(totalCount),True,color)
+    totalTextRect = totalText.get_rect()
+    totalTextRect.center = (x-(m/2)+(m/24),y/2)
+    screen.blit(totalText,totalTextRect)
+
+    lvlTitle = titleFont.render("Level",True,color)
+    lvlTitleRect = lvlTitle.get_rect()
+    lvlTitleRect.center = (x-(m/2)+(m/24),y-m-40)
+    screen.blit(lvlTitle,lvlTitleRect)
+
+    lvlText = numFont.render(str(lvl+1),True,color)
+    lvlTextRect = lvlText.get_rect()
+    lvlTextRect.center = (x-(m/2)+(m/24),y-m)
+    screen.blit(lvlText,lvlTextRect)
 
 def updateBoard(b,p,mv,pmv):
     #visually updates the game board after each move
@@ -336,20 +397,20 @@ def swap(b,p1,p2):
     b[p1[0]][p1[1]] = b[p2[0]][p2[1]]
     b[p2[0]][p2[1]] = t
 
-def randomMove(b,mv,a):
+def randomMove(b,p,mv,a):
     #generate a random valid move for the ai
-    mv = makeMove(findAI(b,mv,a),b,mv,[])
+    mv = makeMove(findAI(b,mv,a),b,p,mv,[])
     cnt = 0
     while len(mv) <= 1:
         if len(mv) == 0:
             return mv
-        mv = makeMove(findAI(b,mv,a),b,mv,[])
+        mv = makeMove(findAI(b,mv,a),b,p,mv,[])
         cnt += 1
         if cnt > 20: #fail-safe break if stalemate exists
             return [-1]
     return mv
 
-def makeMove(pos,b,mv,pmv):
+def makeMove(pos,b,p,mv,pmv):
     #when selecting a piece, displays which squares can be moved to
     #when selecting an available move, makes the move with the selected piece
     global m
@@ -365,10 +426,11 @@ def makeMove(pos,b,mv,pmv):
     if len(mv) > 0 and (b[x][y] == 1 or checkRange(b[x][y],lv,hv)):
         if [x,y] in mv:
             #make move to square when available
+            last = [mv[0],[x,y]]
+            animate(b,p,mv)
             t = b[mv[0][0]][mv[0][1]]
             b[x][y] = t
             b[mv[0][0]][mv[0][1]] = 1
-            last = [mv[0],[x,y]]
             if clr == 0:
                 count += 1
                 totalCount += 1
@@ -611,15 +673,6 @@ def checkKing(b):
                 return 0
     return 1
 
-def getWhite(b):
-    #get all white pieces
-    arr = []
-    for i in range(len(b)):
-        for j in range(len(b[i])):
-            if checkRange(b[i][j],1,8):
-                arr.append(b[i][j])
-    return arr
-
 def getColor():
     #set the color for the on-screen text
     global count,maxMoves,gameover
@@ -636,6 +689,7 @@ def main():
     global x,y,m
     global running
     global mode,clr,lvl,pre,last,count,totalCount,maxMoves,sd,rsh,rsgn,gameover
+    global titleFont,numFont,color
     pieces = initPieces()
     board = createBoard(pieces,0)
     moves = []
@@ -643,7 +697,6 @@ def main():
     atts = []
     left = []
     premv = []
-    color = [0,255,0]
     updateBoard(board,pieces,moves,[])
     
     while running:
@@ -663,7 +716,7 @@ def main():
                         rsh = True
                         if count + int(maxMoves/4)*2 < maxMoves:
                             count += int(maxMoves/4)
-                            board = createBoard(board,getWhite(board))
+                            board = createBoard(board,findPieces(board))
                             moves = []
                             updateBoard(board,pieces,moves,[])
                     color = getColor()
@@ -678,11 +731,30 @@ def main():
                     color = getColor()
             elif event.type == pygame.MOUSEBUTTONUP:
                 #tile is selected & action is performed when applicable
+                if clr == 0:
+                    if findAttacks(board,moves) == [0] and len(moves) > 0:
+                        #very rare case where white is slatemated
+                        #fill up white's arsenal with all kings
+                        moves = []
+                        lvl += 1
+                        t = findPieces(board)
+                        for i in range(len(t)):
+                            left.append(t[i])
+                        while len(left) < 16:
+                            left.append(7)
+                        board = createBoard(board,left)
+                        left = []
+                        clr = 0
+                        last = []
+                        count = 0
+                        color = getColor()
+                        updateBoard(board,pieces,moves,[])
+                    clr = 0
                 if gameover or event.pos[0] > x-m+int(m/12):
                     continue
                 if rsh:
                     rsh = False
-                moves = makeMove(event.pos,board,moves,premv)
+                moves = makeMove(event.pos,board,pieces,moves,premv)
                 if pre != 1 or len(moves) == 0:
                     premv = []
                 if pre == 1 and clr == 0 and len(moves) > 0:
@@ -694,7 +766,7 @@ def main():
                     if atts[0] == 0 and len(caps) == 0:
                         #case1: no attacks presents & no captures possible
                         #make completely random move
-                        moves = randomMove(board,moves,atts)
+                        moves = randomMove(board,pieces,moves,atts)
                     elif len(caps) > 0:
                         #case2: capture is possible regardless of attacks
                         #make completely random capture if more than one
@@ -706,7 +778,7 @@ def main():
                         moves = avoidAttack(board,moves,atts)
                         if len(moves) == 0:
                             #no attack can be avoided, make completely random move
-                            moves = randomMove(board,moves,atts)
+                            moves = randomMove(board,pieces,moves,atts)
                     if len(moves) == 0 or moves == [-1]:
                         #if no move is possible, the game will reset
                         lvl += 1
@@ -719,6 +791,8 @@ def main():
                                 left.append(t[i])
                         for i in range(len(left)):
                             if moves == [-1] and left[i] != 7:
+                                #rare case where black is stalemated
+                                #promote all white pieces to queens
                                 left[i] = 6
                         board = createBoard(board,left)
                         left = []
@@ -729,7 +803,7 @@ def main():
                         updateBoard(board,pieces,moves,[])
                         #running = False
                         break
-                    moves = makeMove(moveAI(board,moves,atts),board,moves,[])
+                    moves = makeMove(moveAI(board,moves,atts),board,pieces,moves,[])
                     updateBoard(board,pieces,moves,[])
                     prom = checkProm(board)
                     if prom > 0:
@@ -760,43 +834,12 @@ def main():
                             count = 0
                             color = getColor()
                             updateBoard(board,pieces,moves,[])
-                    if len(getWhite(board)) == 0 or count >= maxMoves:
+                    if len(findPieces(board)) == 0 or count >= maxMoves:
                         gameover = True
                         
                 color = getColor()
-                        
-        titleFont = pygame.font.SysFont("ariel",m-int(m/2)-int(m/6))
-        numFont = pygame.font.SysFont("ariel",m-int(m/3))
 
-        countTitle = titleFont.render("Moves",True,color)
-        countTitleRect = countTitle.get_rect()
-        countTitleRect.center = (x-(m/2)+(m/24),m-40)
-        screen.blit(countTitle,countTitleRect)
-
-        countText = numFont.render(str(count),True,color)
-        countTextRect = countText.get_rect()
-        countTextRect.center = (x-(m/2)+(m/24),m)
-        screen.blit(countText,countTextRect)
-
-        totalTitle = titleFont.render("Total",True,color)
-        totalTitleRect = totalTitle.get_rect()
-        totalTitleRect.center = (x-(m/2)+(m/24),y/2-40)
-        screen.blit(totalTitle,totalTitleRect)
-
-        totalText = numFont.render(str(totalCount),True,color)
-        totalTextRect = totalText.get_rect()
-        totalTextRect.center = (x-(m/2)+(m/24),y/2)
-        screen.blit(totalText,totalTextRect)
-
-        lvlTitle = titleFont.render("Level",True,color)
-        lvlTitleRect = lvlTitle.get_rect()
-        lvlTitleRect.center = (x-(m/2)+(m/24),y-m-40)
-        screen.blit(lvlTitle,lvlTitleRect)
-
-        lvlText = numFont.render(str(lvl+1),True,color)
-        lvlTextRect = lvlText.get_rect()
-        lvlTextRect.center = (x-(m/2)+(m/24),y-m)
-        screen.blit(lvlText,lvlTextRect)
+            updateText()
         
         pygame.display.update()
         clock.tick(100)
