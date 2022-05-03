@@ -12,6 +12,7 @@ mode = 0 #0 = 1 player against ai, 1 = 2 player game, -1 = 1 player (testing)
 lvl,clr,pre = 0,0,0
 exp = 0 #0 = normal mode, 1 = expert mode
 boost = 0 #0 = normal mode, 1 = boost mode
+gain = 1 #0 = normal start & always start with 9 pieces minimum every level, 1 = start with only a king & only gain 1 pawn every level
 last = []
 values = [1,3,3,5,8,-5]
 color = [0,255,0]
@@ -29,8 +30,11 @@ textRect = text.get_rect()
 textRect.center = (x/2,y/2)
 screen.blit(text,textRect)'''
 
-titleFont = pygame.font.SysFont("ariel",m-int(m/2)-int(m/6))
-numFont = pygame.font.SysFont("ariel",m-int(m/3))
+'''titleFont = pygame.font.Font("arial.ttf",m-int(m/2)-int(m/4))
+numFont = pygame.font.Font("arial.ttf",m-int(m/2))'''
+
+titleFont = pygame.font.SysFont("arial",m-int(m/2)-int(m/6))
+numFont = pygame.font.SysFont("arial",m-int(m/3))
 
 pawn = ["img/Chess_plt60.png","img/Chess_pdt60.png"]
 knight = ["img/Chess_nlt60.png","img/Chess_ndt60.png"]
@@ -69,11 +73,13 @@ def createBoard(p,left):
 
 def getSum(v):
     #sums piece values for both white and black
-    global values
+    global values,gain
     sc = [0,0]
     for i in range(len(v)):
         if v[i] == -1:
             continue
+        if gain == 1 and i == 4:
+            sc[0] += 8
         if i < 16:
             sc[0] += values[v[i]-6]+1
         else:
@@ -91,8 +97,11 @@ def generateNewLevel(b,p,left):
     nx,ny = int(x/m),int(y/m)
     h = int(nx/2)
     v = [9,7,8,10,11,8,7,9,6,6,6,6,6,6,6,6,0,0,0,0,0,0,0,0,3,1,2,4,5,2,1,3]
+    if lvl == 0 and gain == 1:
+        t = [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,5,-1,-1,-1]
+        v = v[:16]+t
     #if lvl == 0:
-     #   v = [9,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0,0,0,0,0,0,0,0,3,1,2,4,5,2,1,3]
+     #   v = [6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0,0,0,0,0,0,0,0,3,1,2,4,5,2,1,3]
     #if lvl == 0:
      #   v = [6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,3,-1,2,4,5,2,-1,3]
     #if lvl == 0:
@@ -121,7 +130,7 @@ def generateNewLevel(b,p,left):
                 #white gets up to 8 free pawns every new game
                 if not sd and not rsh:
                     v[i] = 0
-                if cnt <= 8:
+                if cnt <= 8 or gain == 1:
                     break
                 cnt -= 1
             elif v[i] == -1:
@@ -132,11 +141,13 @@ def generateNewLevel(b,p,left):
     random.shuffle(pool)
     it = 0
     print(sc)
-    while sc[0] > sc[1]+int(lvl*2.5)-(boost*25) and sc[0] > 10 and len(pool) > 0:
+    while sc[0] > sc[1]+int(lvl*2.5)-(boost*25) and sc[0] > 5 and len(pool) > 0:
         v[pool[0]] = -1
         pool.pop(0)
         sc = getSum(v)
         print(sc)
+    if sc[0] == 0:
+        v[0] = 6
     for i in range(exp):
         v = v[:16]+v
     it,j = 0,0
@@ -734,14 +745,13 @@ def main():
                 if clr == 0:
                     if findAttacks(board,moves) == [0] and len(moves) > 0:
                         #very rare case where white is slatemated
-                        #fill up white's arsenal with all kings
+                        #give white an extra king
                         moves = []
                         lvl += 1
                         t = findPieces(board)
                         for i in range(len(t)):
                             left.append(t[i])
-                        while len(left) < 16:
-                            left.append(7)
+                        left.append(7)
                         board = createBoard(board,left)
                         left = []
                         clr = 0
@@ -789,11 +799,10 @@ def main():
                                 left.append(t[i]+1)
                             else:
                                 left.append(t[i])
-                        for i in range(len(left)):
-                            if moves == [-1] and left[i] != 7:
-                                #rare case where black is stalemated
-                                #promote all white pieces to queens
-                                left[i] = 6
+                        if moves == [-1]:
+                            #rare case where black is stalemated
+                            #white gains an extra queen
+                            left.append(6)
                         board = createBoard(board,left)
                         left = []
                         clr = 0
@@ -809,8 +818,6 @@ def main():
                     if prom > 0:
                         if not sd:
                             left.append(prom+1)
-                        else:
-                            left.append(prom)
                         updateBoard(board,pieces,moves,[])
                         break
                     king = checkKing(board)
