@@ -14,7 +14,7 @@ exp = 0 #0 = normal mode, 1 = expert mode
 boost = 0 #0 = normal mode, 1 = boost mode
 gain = 1 #0 = normal start & always start with 9 pieces minimum every level, 1 = start with only a king & only gain 1 pawn every level
 last = []
-values = [1,3,3,5,8,-5]
+values = [1,3,3,5,8,2]
 color = [0,255,0]
 count = 0 #in-level move counter
 totalCount = 0 #total move counter
@@ -30,11 +30,11 @@ textRect = text.get_rect()
 textRect.center = (x/2,y/2)
 screen.blit(text,textRect)'''
 
-'''titleFont = pygame.font.Font("arial.ttf",m-int(m/2)-int(m/4))
-numFont = pygame.font.Font("arial.ttf",m-int(m/2))'''
+titleFont = pygame.font.Font("arial.ttf",m-int(m/2)-int(m/4))
+numFont = pygame.font.Font("arial.ttf",m-int(m/2))
 
-titleFont = pygame.font.SysFont("arial",m-int(m/2)-int(m/6))
-numFont = pygame.font.SysFont("arial",m-int(m/3))
+titleFont = pygame.font.SysFont("ariel",m-int(m/2)-int(m/6))
+numFont = pygame.font.SysFont("ariel",m-int(m/3))
 
 pawn = ["img/Chess_plt60.png","img/Chess_pdt60.png"]
 knight = ["img/Chess_nlt60.png","img/Chess_ndt60.png"]
@@ -83,7 +83,7 @@ def getSum(v):
         if i < 16:
             sc[0] += values[v[i]-6]+1
         else:
-            sc[1] += values[v[i]]+1
+            sc[1] += values[v[i]]
     return sc
 
 def generateNewLevel(b,p,left):
@@ -106,6 +106,7 @@ def generateNewLevel(b,p,left):
      #   v = [6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,3,-1,2,4,5,2,-1,3]
     #if lvl == 0:
      #   v = [9,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0,5,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1]
+    print(len(left))
     if lvl == 0:
         for i in range(16,len(v)):
             if v[i] < 4:
@@ -130,7 +131,7 @@ def generateNewLevel(b,p,left):
                 #white gets up to 8 free pawns every new game
                 if not sd and not rsh:
                     v[i] = 0
-                if cnt <= 8 or gain == 1:
+                if cnt <= 8 or (i-16 >= int(lvl*0.2) and gain == 1):
                     break
                 cnt -= 1
             elif v[i] == -1:
@@ -141,7 +142,7 @@ def generateNewLevel(b,p,left):
     random.shuffle(pool)
     it = 0
     print(sc)
-    while sc[0] > sc[1]+int(lvl*2.5)-(boost*25) and sc[0] > 5 and len(pool) > 0:
+    while (sc[0] > sc[1]+int(lvl*0.5)-(boost*25) or (sc[0] > lvl+5 and gain == 1)) and len(pool) > 0:
         v[pool[0]] = -1
         pool.pop(0)
         sc = getSum(v)
@@ -702,7 +703,7 @@ def main():
     global mode,clr,lvl,pre,last,count,totalCount,maxMoves,sd,rsh,rsgn,gameover
     global titleFont,numFont,color
     pieces = initPieces()
-    board = createBoard(pieces,0)
+    board = createBoard(pieces,[])
     moves = []
     caps = []
     atts = []
