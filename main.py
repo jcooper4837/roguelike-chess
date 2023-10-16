@@ -4,16 +4,19 @@ import random
 pygame.init()
 clock = pygame.time.Clock()
 
-x,y,m = 1320,720,120 #higher m = smaller board, 60 or 120 recommended, max 120
+x,y,m = 1080,600,120
+#x,y,m = 1320,720,120 #higher m = smaller board, 60 or 120 recommended, max 120
 x -= int(m/12)
 screen = pygame.display.set_mode([x,y])
 running = True
 mode = 0 #0 = 1 player against ai, 1 = 2 player game, -1 = 1 player (testing)
-lvl,clr,pre = 0,0,0
+lvl,clr,pre = 0,0,1
 exp = 0 #0 = normal mode, 1 = expert mode
 boost = 0 #0 = normal mode, 1 = boost mode
 gain = 1 #0 = normal start & always start with 9 pieces minimum every level, 1 = start with only a king & only gain 1 pawn every level
 last = []
+pup = []
+pupProb = [0.5,0.45,0.4,0.35,0.3,0.25,0.2,0.15,0.1,0.05]
 values = [1,3,3,5,8,2]
 color = [0,255,0]
 count = 0 #in-level move counter
@@ -23,6 +26,7 @@ sd = False #false = normal, true = sudden death (white king has been captured)
 rsh = False #reshuffle
 rsgn = False #resign
 gameover = False
+old = True
 
 '''font = pygame.font.SysFont("ariel",m)
 text = font.render(str(lvl),True,(255,255,255))
@@ -106,7 +110,6 @@ def generateNewLevel(b,p,left):
      #   v = [6,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,3,-1,2,4,5,2,-1,3]
     #if lvl == 0:
      #   v = [9,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,0,5,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1]
-    print(len(left))
     if lvl == 0:
         for i in range(16,len(v)):
             if v[i] < 4:
@@ -131,7 +134,7 @@ def generateNewLevel(b,p,left):
                 #white gets up to 8 free pawns every new game
                 if not sd and not rsh:
                     v[i] = 0
-                if cnt <= 8 or (i-16 >= int(lvl*0.2) and gain == 1):
+                if cnt <= 8 or (gain == 1 and i-16 >= int(lvl*0.2)):
                     break
                 cnt -= 1
             elif v[i] == -1:
@@ -142,13 +145,13 @@ def generateNewLevel(b,p,left):
     random.shuffle(pool)
     it = 0
     print(sc)
-    while (sc[0] > sc[1]+int(lvl*0.5)-(boost*25) or (sc[0] > lvl+5 and gain == 1)) and len(pool) > 0:
+    while (sc[0] > sc[1]+int(lvl*0.5)-(boost*25) or (gain == 1 and sc[0] > lvl+5)) and len(pool) > 0:
         v[pool[0]] = -1
         pool.pop(0)
         sc = getSum(v)
         print(sc)
     if sc[0] == 0:
-        v[0] = 6
+        v[12] = 6
     for i in range(exp):
         v = v[:16]+v
     it,j = 0,0
@@ -196,6 +199,21 @@ def generateNewLevel(b,p,left):
             if b[i][j] == 1 and r == 0 and not (j == 0 and (i == h or i == h-1)):
                 b[i][j] = 0
     return b'''
+
+def spawnPowerups(b,p):
+    global pup,pupProb
+    x = random.randint(0,len(b)-1)
+    y = random.randint(0,len(b[0])-1)
+    print([x,y],end=" ")
+    print(b[x][y])
+    if b[x][y] == 1:
+        t = random.randint(0,len(pupProb)-1)
+        ch = random.random()
+        print(ch < 0.1,ch,t)
+        if ch < pupProb[t]:
+            pup.append([[x,y],t])
+            print(pup)
+    print()
 
 def animate(b,p,mv):
     #create a smooth animation for when a piece moves to another square
@@ -258,6 +276,7 @@ def updateBoard(b,p,mv,pmv):
     global screen
     global image
     global last
+    global pup
     screen.fill((49,46,43))
     h = int(x/m/2)
     for i in range(int(x/m)):
@@ -279,6 +298,20 @@ def updateBoard(b,p,mv,pmv):
                 if b[i][j] > 1:
                     #piece is drawn over tile
                     screen.blit(p[b[i][j]-2],(i*m,j*m))
+                popPup = []
+                for k in range(len(pup)):
+                    if [i,j] == pup[k][0]:
+                        if b[i][j] > 1:
+                            popPup.append(k-len(popPup))
+                            continue
+                        pupText = numFont.render(str(pup[k][1]),True,[0,0,0])
+                        pupTextRect = pupText.get_rect()
+                        pupTextRect.center = (i*m+int(m/2),j*m+int(m/2))
+                        screen.blit(pupText,pupTextRect)
+                        break
+                for k in range(len(popPup)):
+                    pup.pop(popPup[k])
+                popPup = []
     dot = [98,92,86]
     for i in range(1,len(mv)):
         #draw dots on squares that can be moved to
@@ -700,7 +733,7 @@ def main():
     global clock
     global x,y,m
     global running
-    global mode,clr,lvl,pre,last,count,totalCount,maxMoves,sd,rsh,rsgn,gameover
+    global mode,clr,lvl,pre,last,count,totalCount,maxMoves,sd,rsh,rsgn,gameover,old
     global titleFont,numFont,color
     pieces = initPieces()
     board = createBoard(pieces,[])
@@ -709,6 +742,7 @@ def main():
     atts = []
     left = []
     premv = []
+    recent = -1
     updateBoard(board,pieces,moves,[])
     
     while running:
@@ -721,6 +755,9 @@ def main():
                 elif event.key == pygame.K_p:
                     #switch that enables premoves
                     pre = (pre+1)%2
+                elif event.key == pygame.K_l:
+                    #switch that enables move display on last moved piece
+                    old = not old
                 elif event.key == pygame.K_r:
                     #switch that resets board at cost of some moves
                     #only works when current level has 0 moves
@@ -765,6 +802,7 @@ def main():
                     continue
                 if rsh:
                     rsh = False
+                recent = event.pos
                 moves = makeMove(event.pos,board,pieces,moves,premv)
                 if pre != 1 or len(moves) == 0:
                     premv = []
@@ -772,6 +810,7 @@ def main():
                     premv = findPreMoves(board,moves)
                 updateBoard(board,pieces,moves,premv)
                 while mode == 0 and clr == 1:
+                    spawnPowerups(board,moves)
                     atts = findAttacks(board,moves)
                     caps = findCaps(board,moves)
                     if atts[0] == 0 and len(caps) == 0:
@@ -844,7 +883,13 @@ def main():
                             updateBoard(board,pieces,moves,[])
                     if len(findPieces(board)) == 0 or count >= maxMoves:
                         gameover = True
-                        
+                    if old:
+                        moves = makeMove(recent,board,pieces,moves,premv)
+                        if pre != 1 or len(moves) == 0:
+                            premv = []
+                        if pre == 1 and clr == 0 and len(moves) > 0:
+                            premv = findPreMoves(board,moves)
+                        updateBoard(board,pieces,moves,premv)
                 color = getColor()
 
             updateText()
